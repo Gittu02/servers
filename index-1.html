@@ -1,0 +1,1238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Quartz SMP — Economy Server</title>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700;900&family=Cinzel:wght@400;600;700&family=Rajdhani:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+  <style>
+    :root {
+      --gold: #FFD700;
+      --gold2: #FFA500;
+      --gold-glow: rgba(255,215,0,0.35);
+      --dark: #0a0c10;
+      --darker: #060709;
+      --panel: rgba(16,20,30,0.92);
+      --panel2: rgba(20,26,40,0.97);
+      --border: rgba(255,215,0,0.18);
+      --border2: rgba(255,215,0,0.38);
+      --text: #e8dfc8;
+      --muted: #8a8070;
+      --green: #4ade80;
+      --teal: #2dd4bf;
+      --red: #f87171;
+      --blue: #60a5fa;
+      --purple: #c084fc;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      background: var(--dark);
+      color: var(--text);
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 16px;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* ─── Starfield / BG ─── */
+    body::before {
+      content: '';
+      position: fixed; inset: 0;
+      background:
+        radial-gradient(ellipse 80% 50% at 50% -10%, rgba(255,180,0,0.08) 0%, transparent 70%),
+        radial-gradient(ellipse 60% 40% at 80% 100%, rgba(255,100,0,0.05) 0%, transparent 60%),
+        radial-gradient(ellipse 40% 60% at 0% 60%, rgba(30,60,120,0.10) 0%, transparent 60%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* ─── Particle canvas ─── */
+    #particles { position:fixed; inset:0; z-index:0; pointer-events:none; }
+
+    /* ─── NAV ─── */
+    nav {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 3rem;
+      height: 64px;
+      background: rgba(6,7,9,0.92);
+      border-bottom: 1.5px solid var(--border);
+      backdrop-filter: blur(18px);
+      box-shadow: 0 2px 40px rgba(255,215,0,0.06);
+    }
+
+    .nav-logo {
+      font-family: 'Cinzel Decorative', serif;
+      font-size: 1.25rem;
+      color: var(--gold);
+      text-shadow: 0 0 18px var(--gold-glow);
+      letter-spacing: 2px;
+      text-decoration: none;
+    }
+
+    .nav-links { display: flex; gap: 2.2rem; list-style: none; }
+    .nav-links a {
+      font-family: 'Cinzel', serif;
+      font-size: 0.82rem;
+      font-weight: 600;
+      letter-spacing: 1.5px;
+      color: var(--muted);
+      text-decoration: none;
+      text-transform: uppercase;
+      transition: color 0.2s, text-shadow 0.2s;
+    }
+    .nav-links a:hover, .nav-links a.active {
+      color: var(--gold);
+      text-shadow: 0 0 12px var(--gold-glow);
+    }
+
+    /* ─── PAGES ─── */
+    .page { display: none; min-height: 100vh; padding-top: 64px; position: relative; z-index: 1; }
+    .page.active { display: block; }
+
+    /* ─── HOME HERO ─── */
+    .hero {
+      min-height: calc(100vh - 64px);
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      text-align: center;
+      padding: 3rem 2rem;
+      position: relative;
+    }
+
+    .hero-badge {
+      display: inline-flex; align-items: center; gap: 0.5rem;
+      font-family: 'Cinzel', serif; font-size: 0.72rem; font-weight: 700;
+      letter-spacing: 3px; text-transform: uppercase;
+      color: var(--gold2);
+      border: 1px solid var(--border2);
+      padding: 0.35rem 1.1rem;
+      border-radius: 2px;
+      margin-bottom: 2rem;
+      animation: fadeDown 0.7s ease both;
+    }
+    .hero-badge::before { content: '✦'; font-size: 0.6rem; }
+    .hero-badge::after  { content: '✦'; font-size: 0.6rem; }
+
+    .hero-title {
+      font-family: 'Cinzel Decorative', serif;
+      font-size: clamp(2.6rem, 7vw, 5.5rem);
+      font-weight: 900;
+      line-height: 1.05;
+      color: #fff;
+      text-shadow: 0 0 60px rgba(255,215,0,0.25), 0 4px 30px rgba(0,0,0,0.6);
+      animation: fadeDown 0.7s 0.1s ease both;
+      margin-bottom: 0.3rem;
+    }
+
+    .hero-title span {
+      background: linear-gradient(90deg, var(--gold), var(--gold2), #ff8c00);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .hero-sub {
+      font-family: 'Cinzel', serif;
+      font-size: clamp(1rem, 2vw, 1.3rem);
+      color: var(--muted);
+      letter-spacing: 4px;
+      text-transform: uppercase;
+      margin-bottom: 3.5rem;
+      animation: fadeDown 0.7s 0.2s ease both;
+    }
+
+    /* ─── IP BOX ─── */
+    .ip-container {
+      display: flex; flex-direction: column; align-items: center; gap: 1rem;
+      animation: fadeUp 0.7s 0.3s ease both;
+      margin-bottom: 3.5rem;
+    }
+
+    .ip-label {
+      font-family: 'Cinzel', serif; font-size: 0.72rem;
+      letter-spacing: 3px; text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    .ip-box {
+      display: flex; align-items: center; gap: 0;
+      border: 1.5px solid var(--border2);
+      border-radius: 4px;
+      overflow: hidden;
+      box-shadow: 0 0 30px rgba(255,215,0,0.08), inset 0 0 20px rgba(0,0,0,0.4);
+      transition: box-shadow 0.3s;
+    }
+    .ip-box:hover { box-shadow: 0 0 40px rgba(255,215,0,0.18), inset 0 0 20px rgba(0,0,0,0.4); }
+
+    .ip-text {
+      font-family: 'Cinzel Decorative', serif;
+      font-size: clamp(1rem, 2.5vw, 1.5rem);
+      color: var(--gold);
+      padding: 0.85rem 2rem;
+      background: rgba(20,15,0,0.6);
+      letter-spacing: 3px;
+      user-select: all;
+    }
+
+    .copy-btn {
+      background: linear-gradient(135deg, #b8860b, #daa520, #b8860b);
+      border: none; cursor: pointer;
+      padding: 0.85rem 1.5rem;
+      font-family: 'Cinzel', serif; font-size: 0.8rem; font-weight: 700;
+      letter-spacing: 1.5px; text-transform: uppercase;
+      color: #1a1000;
+      transition: filter 0.2s, transform 0.1s;
+      display: flex; align-items: center; gap: 0.5rem;
+      border-left: 1.5px solid rgba(255,215,0,0.3);
+    }
+    .copy-btn:hover { filter: brightness(1.2); }
+    .copy-btn:active { transform: scale(0.97); }
+    .copy-btn svg { width: 16px; height: 16px; }
+
+    .copy-toast {
+      font-family: 'Cinzel', serif; font-size: 0.72rem; letter-spacing: 2px;
+      color: var(--green); opacity: 0; transition: opacity 0.3s;
+      text-transform: uppercase;
+    }
+    .copy-toast.show { opacity: 1; }
+
+    /* ─── STATS ─── */
+    .stats-row {
+      display: flex; gap: 2rem; flex-wrap: wrap; justify-content: center;
+      animation: fadeUp 0.7s 0.4s ease both;
+    }
+
+    .stat-card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 1.2rem 2rem;
+      text-align: center;
+      min-width: 130px;
+      position: relative;
+      overflow: hidden;
+      transition: border-color 0.3s, transform 0.3s;
+    }
+    .stat-card::before {
+      content: '';
+      position: absolute; top: 0; left: 0; right: 0; height: 2px;
+      background: linear-gradient(90deg, transparent, var(--gold), transparent);
+    }
+    .stat-card:hover { border-color: var(--border2); transform: translateY(-3px); }
+
+    .stat-num {
+      font-family: 'Cinzel Decorative', serif; font-size: 1.6rem;
+      color: var(--gold); display: block; margin-bottom: 0.25rem;
+    }
+    .stat-label {
+      font-family: 'Cinzel', serif; font-size: 0.68rem;
+      letter-spacing: 2.5px; text-transform: uppercase; color: var(--muted);
+    }
+
+    /* ─── SCROLL CUE ─── */
+    .scroll-cue {
+      position: absolute; bottom: 2.5rem; left: 50%; transform: translateX(-50%);
+      display: flex; flex-direction: column; align-items: center; gap: 0.5rem;
+      opacity: 0.45; animation: bounce 2s infinite;
+    }
+    .scroll-cue span { font-family: 'Cinzel', serif; font-size: 0.65rem; letter-spacing: 2px; text-transform: uppercase; }
+    .scroll-cue svg { width: 18px; height: 18px; color: var(--gold); }
+
+    /* ─── FEATURES SECTION ─── */
+    .section {
+      padding: 5rem 2rem;
+      max-width: 1200px; margin: 0 auto;
+    }
+
+    .section-header {
+      text-align: center; margin-bottom: 3.5rem;
+    }
+
+    .section-tag {
+      display: inline-block;
+      font-family: 'Cinzel', serif; font-size: 0.7rem; font-weight: 700;
+      letter-spacing: 4px; text-transform: uppercase; color: var(--gold2);
+      margin-bottom: 0.8rem;
+    }
+
+    .section-title {
+      font-family: 'Cinzel Decorative', serif;
+      font-size: clamp(1.6rem, 4vw, 2.8rem);
+      color: #fff;
+      text-shadow: 0 0 30px rgba(255,215,0,0.2);
+    }
+
+    .section-div {
+      display: flex; justify-content: center; margin-top: 1rem;
+    }
+    .section-div span {
+      width: 80px; height: 2px;
+      background: linear-gradient(90deg, transparent, var(--gold), transparent);
+      display: block;
+    }
+
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 1.5rem;
+    }
+
+    .feature-card {
+      background: var(--panel2);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 2rem 1.5rem;
+      position: relative; overflow: hidden;
+      transition: border-color 0.3s, transform 0.3s, box-shadow 0.3s;
+    }
+    .feature-card::after {
+      content: '';
+      position: absolute; bottom: 0; left: 0; right: 0; height: 3px;
+      background: linear-gradient(90deg, transparent, var(--c, var(--gold)), transparent);
+      opacity: 0; transition: opacity 0.3s;
+    }
+    .feature-card:hover {
+      border-color: var(--border2); transform: translateY(-4px);
+      box-shadow: 0 8px 30px rgba(255,215,0,0.07);
+    }
+    .feature-card:hover::after { opacity: 1; }
+
+    .feature-icon {
+      font-size: 2rem; margin-bottom: 1rem;
+      display: inline-block;
+    }
+    .feature-title {
+      font-family: 'Cinzel', serif; font-size: 1rem; font-weight: 700;
+      color: var(--gold); letter-spacing: 1px;
+      margin-bottom: 0.6rem;
+    }
+    .feature-desc {
+      font-size: 0.9rem; color: var(--muted); line-height: 1.65;
+    }
+
+    /* ─── COMMANDS PAGE ─── */
+    .commands-hero {
+      background: linear-gradient(180deg, rgba(255,180,0,0.05) 0%, transparent 60%);
+      border-bottom: 1px solid var(--border);
+      padding: 4rem 2rem 3rem;
+      text-align: center;
+    }
+
+    .commands-hero h1 {
+      font-family: 'Cinzel Decorative', serif;
+      font-size: clamp(1.8rem, 5vw, 3.5rem);
+      color: #fff; margin-bottom: 0.8rem;
+      text-shadow: 0 0 40px rgba(255,215,0,0.2);
+    }
+    .commands-hero h1 span { color: var(--gold); }
+    .commands-hero p {
+      font-family: 'Cinzel', serif; font-size: 0.88rem;
+      letter-spacing: 2px; color: var(--muted); text-transform: uppercase;
+    }
+
+    .cmd-container { max-width: 1100px; margin: 0 auto; padding: 3rem 2rem 5rem; }
+
+    .cmd-category {
+      margin-bottom: 3.5rem;
+    }
+
+    .cat-header {
+      display: flex; align-items: center; gap: 1rem;
+      margin-bottom: 1.5rem;
+      padding-bottom: 0.75rem;
+      border-bottom: 1.5px solid var(--border);
+    }
+
+    .cat-icon { font-size: 1.5rem; }
+
+    .cat-title {
+      font-family: 'Cinzel', serif; font-size: 1.15rem; font-weight: 700;
+      color: var(--gold); letter-spacing: 1.5px; text-transform: uppercase;
+    }
+
+    .cat-count {
+      margin-left: auto;
+      font-family: 'Cinzel', serif; font-size: 0.7rem; letter-spacing: 2px;
+      color: var(--muted); text-transform: uppercase;
+    }
+
+    .cmd-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+      gap: 1rem;
+    }
+
+    .cmd-card {
+      background: var(--panel2);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 1.2rem 1.4rem;
+      position: relative;
+      transition: border-color 0.25s, box-shadow 0.25s, transform 0.25s;
+      overflow: hidden;
+    }
+    .cmd-card::before {
+      content: '';
+      position: absolute; left: 0; top: 0; bottom: 0; width: 3px;
+      background: var(--accent, var(--gold));
+      opacity: 0.6;
+    }
+    .cmd-card:hover {
+      border-color: var(--border2);
+      box-shadow: 0 4px 24px rgba(255,215,0,0.07);
+      transform: translateX(3px);
+    }
+
+    .cmd-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; margin-bottom: 0.6rem; }
+
+    .cmd-name {
+      font-family: 'Rajdhani', monospace; font-weight: 700; font-size: 1.05rem;
+      color: #fff;
+      background: rgba(255,215,0,0.07);
+      border: 1px solid rgba(255,215,0,0.15);
+      padding: 0.2rem 0.7rem;
+      border-radius: 3px;
+      letter-spacing: 0.5px;
+      display: inline-block;
+    }
+
+    .cmd-copy-btn {
+      background: none; border: 1px solid var(--border);
+      color: var(--muted); cursor: pointer;
+      padding: 0.2rem 0.6rem; border-radius: 3px;
+      font-family: 'Cinzel', serif; font-size: 0.65rem; letter-spacing: 1px;
+      text-transform: uppercase; white-space: nowrap;
+      transition: color 0.2s, border-color 0.2s, background 0.2s;
+      flex-shrink: 0;
+    }
+    .cmd-copy-btn:hover {
+      color: var(--gold); border-color: var(--gold2);
+      background: rgba(255,215,0,0.06);
+    }
+    .cmd-copy-btn.copied { color: var(--green); border-color: var(--green); }
+
+    .cmd-example {
+      font-family: 'Rajdhani', monospace; font-size: 0.85rem;
+      color: var(--teal); margin-bottom: 0.55rem;
+      opacity: 0.85;
+    }
+
+    .cmd-desc {
+      font-size: 0.88rem; color: var(--muted); line-height: 1.55;
+    }
+
+    .cmd-tag {
+      display: inline-block;
+      font-family: 'Cinzel', serif; font-size: 0.62rem; letter-spacing: 1.5px;
+      text-transform: uppercase; padding: 0.15rem 0.5rem;
+      border-radius: 2px; margin-top: 0.5rem;
+      border: 1px solid;
+    }
+    .tag-economy  { color: var(--gold);   border-color: rgba(255,215,0,0.3);   background: rgba(255,215,0,0.06); }
+    .tag-trade    { color: var(--teal);   border-color: rgba(45,212,191,0.3);  background: rgba(45,212,191,0.06); }
+    .tag-shop     { color: var(--blue);   border-color: rgba(96,165,250,0.3);  background: rgba(96,165,250,0.06); }
+    .tag-auction  { color: var(--purple); border-color: rgba(192,132,252,0.3); background: rgba(192,132,252,0.06); }
+    .tag-jobs     { color: var(--green);  border-color: rgba(74,222,128,0.3);  background: rgba(74,222,128,0.06); }
+    .tag-land     { color: var(--red);    border-color: rgba(248,113,113,0.3); background: rgba(248,113,113,0.06); }
+    .tag-chat     { color: #fb923c;       border-color: rgba(251,146,60,0.3);  background: rgba(251,146,60,0.06); }
+
+    /* ─── FOOTER ─── */
+    footer {
+      border-top: 1px solid var(--border);
+      padding: 2rem;
+      text-align: center;
+      position: relative; z-index: 1;
+      background: rgba(6,7,9,0.8);
+    }
+    footer p {
+      font-family: 'Cinzel', serif; font-size: 0.75rem;
+      letter-spacing: 2px; color: var(--muted); text-transform: uppercase;
+    }
+    footer span { color: var(--gold); }
+
+    /* ─── ANIMATIONS ─── */
+    @keyframes fadeDown {
+      from { opacity: 0; transform: translateY(-20px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(20px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes bounce {
+      0%, 100% { transform: translateX(-50%) translateY(0); }
+      50%       { transform: translateX(-50%) translateY(8px); }
+    }
+    @keyframes pulse-gold {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(255,215,0,0.25); }
+      50%       { box-shadow: 0 0 0 8px rgba(255,215,0,0); }
+    }
+
+    .pulse { animation: pulse-gold 2s infinite; }
+
+    /* ─── RESPONSIVE ─── */
+    @media (max-width: 700px) {
+      nav { padding: 0 1.2rem; }
+      .nav-links { gap: 1.2rem; }
+      .nav-links a { font-size: 0.72rem; letter-spacing: 1px; }
+      .ip-text { font-size: 1rem; padding: 0.7rem 1rem; }
+      .cmd-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<canvas id="particles"></canvas>
+
+<!-- NAV -->
+<nav>
+  <a href="#" class="nav-logo" onclick="showPage('home'); return false;">Quartz SMP</a>
+  <ul class="nav-links">
+    <li><a href="#" id="nav-home" class="active" onclick="showPage('home'); return false;">Home</a></li>
+    <li><a href="#" id="nav-commands" onclick="showPage('commands'); return false;">Commands</a></li>
+    <li><a href="#features" onclick="showPage('home'); setTimeout(()=>document.getElementById('features').scrollIntoView({behavior:'smooth'}),100); return false;">Features</a></li>
+  </ul>
+</nav>
+
+<!-- ══════════════════ HOME PAGE ══════════════════ -->
+<div id="page-home" class="page active">
+
+  <!-- Hero -->
+  <section class="hero">
+    <div class="hero-badge">Economy Survival Server</div>
+    <h1 class="hero-title"><span>Quartz</span><br>SMP</h1>
+    <p class="hero-sub">Build · Trade · Dominate</p>
+
+    <!-- IP Box -->
+    <div class="ip-container">
+      <span class="ip-label">Server IP Address</span>
+      <div class="ip-box">
+        <span class="ip-text" id="server-ip">power.hexonode.fun:25951</span>
+        <button class="copy-btn pulse" onclick="copyIP()">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 17.25v3.375c0 .621-.504 1.125-1.125 1.125h-9.75a1.125 1.125 0 0 1-1.125-1.125V7.875c0-.621.504-1.125 1.125-1.125H6.75a9.06 9.06 0 0 1 1.5.124m7.5 10.376h3.375c.621 0 1.125-.504 1.125-1.125V11.25c0-4.46-3.243-8.161-7.5-8.876a9.06 9.06 0 0 0-1.5-.124H9.375c-.621 0-1.125.504-1.125 1.125v3.5m7.5 10.375H9.375a1.125 1.125 0 0 1-1.125-1.125v-9.25m12 6.625v-1.875a3.375 3.375 0 0 0-3.375-3.375h-1.5a1.125 1.125 0 0 1-1.125-1.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H9.75"/></svg>
+          Copy
+        </button>
+      </div>
+      <span class="copy-toast" id="copy-toast">✔ Copied to clipboard!</span>
+    </div>
+
+    <!-- Stats -->
+    <div class="stats-row">
+      <div class="stat-card">
+        <span class="stat-num" id="counter-players">0</span>
+        <span class="stat-label">Online Now</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-num" id="counter-shops">0</span>
+        <span class="stat-label">Player Shops</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-num" id="counter-trades">0</span>
+        <span class="stat-label">Trades Today</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-num" id="counter-uptime">99%</span>
+        <span class="stat-label">Uptime</span>
+      </div>
+    </div>
+
+    <div class="scroll-cue">
+      <span>Explore</span>
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5"/></svg>
+    </div>
+  </section>
+
+  <!-- Features -->
+  <section class="section" id="features">
+    <div class="section-header">
+      <div class="section-tag">What We Offer</div>
+      <h2 class="section-title">Premium Economy Experience</h2>
+      <div class="section-div"><span></span></div>
+    </div>
+    <div class="features-grid">
+      <div class="feature-card" style="--c: var(--gold)">
+        <span class="feature-icon">💰</span>
+        <div class="feature-title">Full Economy System</div>
+        <div class="feature-desc">Earn, spend, and grow your wealth using our robust EssentialsX-powered currency with /bal, /pay, and baltop leaderboards.</div>
+      </div>
+      <div class="feature-card" style="--c: var(--teal)">
+        <span class="feature-icon">🏪</span>
+        <div class="feature-title">Player-Run Shops</div>
+        <div class="feature-desc">Create your own shop with /shop and /sellgui. Buy and sell anything with our dynamic market GUI.</div>
+      </div>
+      <div class="feature-card" style="--c: var(--purple)">
+        <span class="feature-icon">🔨</span>
+        <div class="feature-title">Auction House</div>
+        <div class="feature-desc">List your items on the global Auction House with /ah sell. Browse hundreds of listings and snag the best deals.</div>
+      </div>
+      <div class="feature-card" style="--c: var(--green)">
+        <span class="feature-icon">🏗️</span>
+        <div class="feature-title">Land Claims</div>
+        <div class="feature-desc">Protect your builds and shops with GriefPrevention claims. Your land, your rules.</div>
+      </div>
+      <div class="feature-card" style="--c: var(--blue)">
+        <span class="feature-icon">⚒️</span>
+        <div class="feature-title">Jobs & Income</div>
+        <div class="feature-desc">Join up to 3 jobs and earn money by doing what you love — mining, farming, fishing, building, and more.</div>
+      </div>
+      <div class="feature-card" style="--c: var(--red)">
+        <span class="feature-icon">🏆</span>
+        <div class="feature-title">Leaderboards</div>
+        <div class="feature-desc">Climb the /baltop and jobs leaderboards. Show the server who the true economic ruler is.</div>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<!-- ══════════════════ COMMANDS PAGE ══════════════════ -->
+<div id="page-commands" class="page">
+
+  <div class="commands-hero">
+    <h1>Quartz SMP <span>Commands</span></h1>
+    <p>Complete guide to all economy commands · Click any command to copy</p>
+  </div>
+
+  <div class="cmd-container">
+
+    <!-- ── ECONOMY / BALANCE ── -->
+    <div class="cmd-category">
+      <div class="cat-header">
+        <span class="cat-icon">💰</span>
+        <span class="cat-title">Economy & Balance</span>
+        <span class="cat-count">6 Commands</span>
+      </div>
+      <div class="cmd-grid">
+
+        <div class="cmd-card" style="--accent: var(--gold)">
+          <div class="cmd-top">
+            <span class="cmd-name">/bal</span>
+            <button class="cmd-copy-btn" onclick="copyCmd(this, '/bal')">Copy</button>
+          </div>
+          <div class="cmd-example">» /bal</div>
+          <div class="cmd-desc">Check your current account balance. Add a player name to check someone else's balance.</div>
+          <span class="cmd-tag tag-economy">Economy</span>
+        </div>
+
+        <div class="cmd-card" style="--accent: var(--gold)">
+          <div class="cmd-top">
+            <span class="cmd-name">/baltop</span>
+            <button class="cmd-copy-btn" onclick="copyCmd(this, '/baltop')">Copy</button>
+          </div>
+          <div class="cmd-example">» /baltop</div>
+          <div class="cmd-desc">View the top richest players on the server. Compete for the #1 spot on the wealth leaderboard.</div>
+          <span class="cmd-tag tag-economy">Economy</span>
+        </div>
+
+        <div class="cmd-card" style="--accent: var(--gold)">
+          <div class="cmd-top">
+            <span class="cmd-name">/pay &lt;player&gt; &lt;amount&gt;</span>
+            <button class="cmd-copy-btn" onclick="copyCmd(this, '/pay Steve 500')">Copy</button>
+          </div>
+          <div class="cmd-example">» /pay Steve 500</div>
+          <div class="cmd-desc">Send money to another player. Used for trades, services, or splitting profits with partners.</div>
+          <span class="cmd-tag tag-economy">Economy</span>
+        </div>
+
+        <div class="cmd-card" style="--accent: var(--gold)">
+          <div class="cmd-top">
+            <span class="cmd-name">/eco give &lt;player&gt; &lt;amount&gt;</span>
+            <button class="cmd-copy-btn" onclick="copyCmd(this, '/eco give Steve 1000')">Copy</button>
+          </div>
+          <div class="cmd-example">» /eco give Steve 1000</div>
+          <div class="cmd-desc">Admin command to give money to a player. Used for rewards, events, or starter kits.</div>
+          <span class="cmd-tag tag-economy">Economy</span>
+        </div>
+
+        <div class="cmd-card" style="--accent: var(--gold)">
+          <div class="cmd-top">
+            <span class="cmd-name">/withdraw &lt;amount&gt;</span>
+            <button class="cmd-copy-btn" onclick="copyCmd(this, '/withdraw 1000')">Copy</button>
+          </div>
+          <div class="cmd-example">» /withdraw 1000</div>
+          <div class="cmd-desc">Withdraw money as a physical bank note item you can trade or store in your inventory.</div>
+          <span class="cmd-tag tag-economy">Economy</span>
+        </div>
+
+        <div class="cmd-card" style="--accent: var(--gold)">
+          <div class="cmd-top">
+            <span class="cmd-name">/deposit &lt;amount&gt;</span>
+            <button class="cmd-copy-btn" onclick="copyCmd(this, '/deposit all')">Copy</button>
+          </div>
+          <div class="cmd-example">» /deposit all</div>
+          <div class="cmd-desc">Deposit physical bank note items back into your account. Use "all" to deposit everything at once.</div>
+          <span class="cmd-tag tag-economy">Economy</span>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ── SHOP & SELLING ── -->
+    <div class="cmd-category">
+      <div class="cat-header">
+        <span class="cat-icon">🏪</span>
+        <span class="cat-title">Shop & Selling</span>
+        <span class="cat-count">7 Commands</span>
+      </div>
+      <div class="cmd-grid">
+
+        <div class="cmd-card" style="--accent: var(--blue)">
+          <div class="cmd-top">
+            <span class="cmd-name">/shop</span>
+            <button class="cmd-copy-btn" onclick="copyCmd(this, '/shop')">Copy</button>
+          </div>
+          <div class="cmd-example">» /shop</div>
+          <div class="cmd-desc">Open the server's Admin Shop GUI where you can buy and sell items at fixed prices set by staff.</div>
+          <span class="cmd-tag tag-shop">Shop</span>
+        </div>
+
+        <div class="cmd-card" style="--accent: var(--blue)">
+          <div class="cmd-top">
+            <span class="cmd-name">/sellgui</span>
+            <button class="cmd-copy-btn" onclick="copyCmd(this, '/sellgui')">Copy</button>
+          </div>
+          <div class="cmd-example">» /sellgui</div>
+          <div class="cmd-desc">Open the sell GUI to quickly drag and drop your items for instant cash. Fastest way to sell your loot.</div>
+          <span class="cmd-tag tag-shop">Shop</span>
+        </div>
+
+        <div class="cmd-card" style="--accent: var(--blue)">
+          <div class="cmd-top">
+            <span class="cmd-name">/sell hand</span>
+            <button class="cmd-copy-btn" onclick="copyCmd(this, '/sell hand')">Copy</button>
+          </div>
+          <div class="cmd-example">» /sell hand</div>
+          <div class="cmd-desc">Sell the item currently in your hand to the server shop instantly without opening any GUI.</div>
+          <span class="cmd-tag tag-shop">Shop</span>
+        </div>
+
+        <div class="cmd-card" style="--accent: var(--blue)">
+          <div class="cmd-top">
+            <span class="cmd-name">/sell all</span>
+            <button class="cmd-copy-btn" onclick="copyCmd(this, '/sell all')">Copy</button>
+          </div>
+          <div class="cmd-example">» /sell all</div>
+          <div class="cmd-desc">Sell all sellable items in your entire inventory at once. Perfect after mining or farming runs.</div>
+          <span class="cmd-tag tag-shop">Shop</span>
+        </div>
+
+        <div class="cmd-card" style="--accent: var(--blue)">
+          <div class="cmd-top">
+            <span class="cmd-name">/buy &lt;item&gt; [amount]</span>
+            <button class="cmd-copy-btn" onclick="copyCmd(this, '/buy diamond 64')">Copy</button>
+          </div>
+          <div class="cmd-example">» /buy diamond 64</div>
+          <div class="cmd-desc">Buy items from the server shop by name directly from chat. Specify amount for bulk purchases.</div>
+          <span class="cmd-tag tag-shop">Shop</span>
+        </div>
+
+        <div class="cmd-card" style="--accent: var(--blue)">
+          <div class="cmd-top">
+            <span class="cmd-name">/pshop create &lt;price&gt;</span>
+            <button class="cmd-copy-btn" onclick="copyCmd(this, '/pshop create 50')">Copy</button>
+          </div>
+          <div class="cmd-example">» /pshop create 50</div>
+          <div class="cmd-desc">Create a personal player shop chest by looking at a chest. Set your own prices for any item you want to sell.</div>
+          <span class="cmd-tag tag-shop">Shop</span>
+        </div>
+
+        <div class="cmd-card" style="--accent: var(--blue)">
+          <div class="cmd-top">
+            <span class="cmd-name">/pshop list</span>
+            <button class="cmd-copy-btn" onclick="copyCmd(this, '/pshop list')">Copy</button>
+          </div>
+          <div class="cmd-example">» /pshop list</div>
+          <div class="cmd-desc">View all of your active player shops, their items, prices, and current stock levels.</div>
+          <span class="cmd-tag tag-shop">Shop</span>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ── AUCTION HOUSE ── -->
+    <div class="cmd-category">
+      <div class="cat-header">
+        <span class="cat-icon">🔨</span>
+        <span class="cat-title">Auction House</span>
+        <span class="cat-count">6 Commands</span>
+      </div>
+      <div class="cmd-grid">
+
+        <div class="cmd-card" style="--accent: var(--purple)">
+          <div class="cmd-top">
+            <span class="cmd-name">/ah</span>
+            <button class="cmd-copy-btn" onclick="copyCmd(this, '/ah')">Copy</button>
+          </div>
+          <div class="cmd-example">» /ah</div>
+          <div class="cmd-desc">Open the global Auction House GUI to browse all active player listings. Find rare items and great deals.</div>
+          <span class="cmd-tag tag-auction">Auction</span>
+        </div>
+
+        <div class="cmd-card" style="--accent: var(--purple)">
+          <div class="cmd-top">
+            <span class="cmd-name">/ah sell &lt;price&gt;</span>
+            <button class="cmd-copy-btn" onclick="copyCmd(this, '/ah sell 5000')">Copy</button>
+          </div>
+          <div class="cmd-example">» /ah sell 5000</div>
+          <div class="cmd-desc">List the item in your hand on the Auction House at your desired price. Other players can buy it instantly.</div>
+          <span class="cmd-tag tag-auction">Auction</span>
+        </div>
+
+        <div class="cmd-card" style="--accent: var(--purple)">
+          <div class="cmd-top">
+            <span class="cmd-name">/ah search &lt;item&gt;</span>
+            <button class="cmd-copy-btn" onclick="copyCmd(this, '/ah search netherite')">Copy</button>
+          </div>
+          <div class="cmd-example">» /ah search netherite</div>
+          <div class="cmd-desc">Search the Auction House for specific items by name. Quickly find what you're looking to buy.</div>
+          <span class="cmd-tag tag-auction">Auction</span>
+        </div>
+
+        <div class="cmd-card" style="--accent: var(--purple)">
+          <div class="cmd-top">
+            <span class="cmd-name">/ah listings</span>
+            <button class="cmd-copy-btn" onclick="copyCmd(this, '/ah listings')">Copy</button>
+          </div>
+          <div class="cmd-example">» /ah listings</div>
+          <div class="cmd-desc">View all of your current active listings on the Auction House. Manage prices and remove items.</div>
+          <span class="cmd-tag tag-auction">Auction</span>
+        </div>
+
+        <div class="cmd-card" style="--accent: var(--purple)">
+          <div class="cmd-top">
+            <span class="cmd-name">/ah expired</span>
+            <button class="cmd-copy-btn" onclick="copyCmd(this, '/ah expired')">Copy</button>
+          </div>
+          <div class="cmd-example">» /ah expired</div>
+          <div class="cmd-desc">Collect your unsold items and money from expired or cancelled auction listings. Don't forget to check!</div>
+          <span class="cmd-tag tag-auction">Auction</span>
+        </div>
+
+        <div class="cmd-card" style="--accent: var(--purple)">
+          <div class="cmd-top">
+            <span class="cmd-name">/ah player &lt;name&gt;</span>
+            <button class="cmd-copy-btn" onclick="copyCmd(this, '/ah player Steve')">Copy</button>
+          </div>
+          <div class="cmd-example">» /ah player Steve</div>
+          <div class="cmd-desc">Browse all active auction listings from a specific player. Useful for finding a trader's full stock.</div>
+          <span class="cmd-tag tag-auction">Auction</span>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ── TRADING ── -->
+    <div class="cmd-category">
+      <div class="cat-header">
+        <span class="cat-icon">🤝</span>
+        <span class="cat-title">Trading & Transfers</span>
+        <span class="cat-count">4 Commands</span>
+      </div>
+      <div class="cmd-grid">
+
+        <div class="cmd-card" style="--accent: var(--teal)">
+          <div class="cmd-top">
+            <span class="cmd-name">/trade &lt;player&gt;</span>
+            <button class="cmd-copy-btn" onclick="copyCmd(this, '/trade Steve')">Copy</button>
+          </div>
+          <div class="cmd-example">» /trade Steve</div>
+          <div class="cmd-desc">Send a secure trade request to another player. Both parties can add items and money before confirming the trade.</div>
+          <span class="cmd-tag tag-trade">Trade</span>
+        </div>
+
+        <div class="cmd-card" style="--accent: var(--teal)">
+          <div class="cmd-top">
+            <span class="cmd-name">/trade accept</span>
+            <button class="cmd-copy-btn" onclick="copyCmd(this, '/trade accept')">Copy</button>
+          </div>
+          <div class="cmd-example">» /trade accept</div>
+          <div class="cmd-desc">Accept an incoming trade request from another player. Opens the trade GUI to exchange items safely.</div>
+          <span class="cmd-tag tag-trade">Trade</span>
+        </div>
+
+        <div class="cmd-card" style="--accent: var(--teal)">
+          <div class="cmd-top">
+            <span class="cmd-name">/market</span>
+            <button class="cmd-copy-btn" onclick="copyCmd(this, '/market')">Copy</button>
+          </div>
+          <div class="cmd-example">» /market</div>
+          <div class="cmd-desc">Open the player market board where you can post buy/sell offers and browse community trade listings.</div>
+          <span class="cmd-tag tag-trade">Trade</span>
+        </div>
+
+        <div class="cmd-card" style="--accent: var(--teal)">
+          <div class="cmd-top">
+            <span class="cmd-name">/iteminfo</span>
+            <button class="cmd-copy-btn" onclick="copyCmd(this, '/iteminfo')">Copy</button>
+          </div>
+          <div class="cmd-example">» /iteminfo</div>
+          <div class="cmd-desc">Get detailed info about the item in your hand including current market value, enchants, and item ID.</div>
+          <span class="cmd-tag tag-trade">Trade</span>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ── JOBS ── -->
+    <div class="cmd-category">
+      <div class="cat-header">
+        <span class="cat-icon">⚒️</span>
+        <span class="cat-title">Jobs & Income</span>
+        <span class="cat-count">6 Commands</span>
+      </div>
+      <div class="cmd-grid">
+
+        <div class="cmd-card" style="--accent: var(--green)">
+          <div class="cmd-top">
+            <span class="cmd-name">/jobs browse</span>
+            <button class="cmd-copy-btn" onclick="copyCmd(this, '/jobs browse')">Copy</button>
+          </div>
+          <div class="cmd-example">» /jobs browse</div>
+          <div class="cmd-desc">Browse all available jobs on the server. See pay rates, level bonuses, and requirements before joining.</div>
+          <span class="cmd-tag tag-jobs">Jobs</span>
+        </div>
+
+        <div class="cmd-card" style="--accent: var(--green)">
+          <div class="cmd-top">
+            <span class="cmd-name">/jobs join &lt;job&gt;</span>
+            <button class="cmd-copy-btn" onclick="copyCmd(this, '/jobs join Miner')">Copy</button>
+          </div>
+          <div class="cmd-example">» /jobs join Miner</div>
+          <div class="cmd-desc">Join a job to start earning money automatically while playing. Available jobs: Miner, Farmer, Builder, Hunter, Fisherman, Enchanter, Woodcutter.</div>
+          <span class="cmd-tag tag-jobs">Jobs</span>
+        </div>
+
+        <div class="cmd-card" style="--accent: var(--green)">
+          <div class="cmd-top">
+            <span class="cmd-name">/jobs leave &lt;job&gt;</span>
+            <button class="cmd-copy-btn" onclick="copyCmd(this, '/jobs leave Miner')">Copy</button>
+          </div>
+          <div class="cmd-example">» /jobs leave Miner</div>
+          <div class="cmd-desc">Leave a job. Note: leaving resets your job level progress. Switch wisely!</div>
+          <span class="cmd-tag tag-jobs">Jobs</span>
+        </div>
+
+        <div class="cmd-card" style="--accent: var(--green)">
+          <div class="cmd-top">
+            <span class="cmd-name">/jobs stats</span>
+            <button class="cmd-copy-btn" onclick="copyCmd(this, '/jobs stats')">Copy</button>
+          </div>
+          <div class="cmd-example">» /jobs stats</div>
+          <div class="cmd-desc">View your current job levels, total earnings, and experience progress for all your active jobs.</div>
+          <span class="cmd-tag tag-jobs">Jobs</span>
+        </div>
+
+        <div class="cmd-card" style="--accent: var(--green)">
+          <div class="cmd-top">
+            <span class="cmd-name">/jobs top</span>
+            <button class="cmd-copy-btn" onclick="copyCmd(this, '/jobs top')">Copy</button>
+          </div>
+          <div class="cmd-example">» /jobs top</div>
+          <div class="cmd-desc">See the top players ranked by job level and total earnings. Compete to become the best worker on the server.</div>
+          <span class="cmd-tag tag-jobs">Jobs</span>
+        </div>
+
+        <div class="cmd-card" style="--accent: var(--green)">
+          <div class="cmd-top">
+            <span class="cmd-name">/jobs info &lt;job&gt;</span>
+            <button class="cmd-copy-btn" onclick="copyCmd(this, '/jobs info Miner')">Copy</button>
+          </div>
+          <div class="cmd-example">» /jobs info Miner</div>
+          <div class="cmd-desc">View detailed pay rates and experience gains for every action in a specific job before joining.</div>
+          <span class="cmd-tag tag-jobs">Jobs</span>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ── LAND & CLAIMS ── -->
+    <div class="cmd-category">
+      <div class="cat-header">
+        <span class="cat-icon">🏗️</span>
+        <span class="cat-title">Land Claims & Protection</span>
+        <span class="cat-count">6 Commands</span>
+      </div>
+      <div class="cmd-grid">
+
+        <div class="cmd-card" style="--accent: var(--red)">
+          <div class="cmd-top">
+            <span class="cmd-name">/claim</span>
+            <button class="cmd-copy-btn" onclick="copyCmd(this, '/claim')">Copy</button>
+          </div>
+          <div class="cmd-example">» /claim</div>
+          <div class="cmd-desc">Claim the chunk you are standing in. Protect your builds, shops, and valuables from other players.</div>
+          <span class="cmd-tag tag-land">Land</span>
+        </div>
+
+        <div class="cmd-card" style="--accent: var(--red)">
+          <div class="cmd-top">
+            <span class="cmd-name">/unclaim</span>
+            <button class="cmd-copy-btn" onclick="copyCmd(this, '/unclaim')">Copy</button>
+          </div>
+          <div class="cmd-example">» /unclaim</div>
+          <div class="cmd-desc">Remove the land claim from the chunk you are standing in. Refunds your claim blocks.</div>
+          <span class="cmd-tag tag-land">Land</span>
+        </div>
+
+        <div class="cmd-card" style="--accent: var(--red)">
+          <div class="cmd-top">
+            <span class="cmd-name">/claimslist</span>
+            <button class="cmd-copy-btn" onclick="copyCmd(this, '/claimslist')">Copy</button>
+          </div>
+          <div class="cmd-example">» /claimslist</div>
+          <div class="cmd-desc">View all of your claimed land areas, their coordinates, and remaining claim blocks balance.</div>
+          <span class="cmd-tag tag-land">Land</span>
+        </div>
+
+        <div class="cmd-card" style="--accent: var(--red)">
+          <div class="cmd-top">
+            <span class="cmd-name">/trust &lt;player&gt;</span>
+            <button class="cmd-copy-btn" onclick="copyCmd(this, '/trust Steve')">Copy</button>
+          </div>
+          <div class="cmd-example">» /trust Steve</div>
+          <div class="cmd-desc">Give another player full trust in your claimed land — they can build, break, and open chests.</div>
+          <span class="cmd-tag tag-land">Land</span>
+        </div>
+
+        <div class="cmd-card" style="--accent: var(--red)">
+          <div class="cmd-top">
+            <span class="cmd-name">/accesstrust &lt;player&gt;</span>
+            <button class="cmd-copy-btn" onclick="copyCmd(this, '/accesstrust Steve')">Copy</button>
+          </div>
+          <div class="cmd-example">» /accesstrust Steve</div>
+          <div class="cmd-desc">Allow a player to open doors, buttons, chests, and use switches in your claim — but not build or break.</div>
+          <span class="cmd-tag tag-land">Land</span>
+        </div>
+
+        <div class="cmd-card" style="--accent: var(--red)">
+          <div class="cmd-top">
+            <span class="cmd-name">/untrust &lt;player&gt;</span>
+            <button class="cmd-copy-btn" onclick="copyCmd(this, '/untrust Steve')">Copy</button>
+          </div>
+          <div class="cmd-example">» /untrust Steve</div>
+          <div class="cmd-desc">Revoke all trust from a player in your claimed land. They will no longer have any permissions.</div>
+          <span class="cmd-tag tag-land">Land</span>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ── GENERAL UTILITY ── -->
+    <div class="cmd-category">
+      <div class="cat-header">
+        <span class="cat-icon">⚙️</span>
+        <span class="cat-title">General Utility</span>
+        <span class="cat-count">8 Commands</span>
+      </div>
+      <div class="cmd-grid">
+
+        <div class="cmd-card" style="--accent: #fb923c">
+          <div class="cmd-top">
+            <span class="cmd-name">/home</span>
+            <button class="cmd-copy-btn" onclick="copyCmd(this, '/home')">Copy</button>
+          </div>
+          <div class="cmd-example">» /home</div>
+          <div class="cmd-desc">Teleport to your saved home location. Set multiple homes with /sethome to teleport between your bases and shops.</div>
+          <span class="cmd-tag tag-chat">Utility</span>
+        </div>
+
+        <div class="cmd-card" style="--accent: #fb923c">
+          <div class="cmd-top">
+            <span class="cmd-name">/sethome &lt;name&gt;</span>
+            <button class="cmd-copy-btn" onclick="copyCmd(this, '/sethome shop')">Copy</button>
+          </div>
+          <div class="cmd-example">» /sethome shop</div>
+          <div class="cmd-desc">Save your current location as a named home. Use /home shop to return anytime. Great for your shop district.</div>
+          <span class="cmd-tag tag-chat">Utility</span>
+        </div>
+
+        <div class="cmd-card" style="--accent: #fb923c">
+          <div class="cmd-top">
+            <span class="cmd-name">/spawn</span>
+            <button class="cmd-copy-btn" onclick="copyCmd(this, '/spawn')">Copy</button>
+          </div>
+          <div class="cmd-example">» /spawn</div>
+          <div class="cmd-desc">Teleport back to the server spawn area. Access the main market, admin shop, and community hub.</div>
+          <span class="cmd-tag tag-chat">Utility</span>
+        </div>
+
+        <div class="cmd-card" style="--accent: #fb923c">
+          <div class="cmd-top">
+            <span class="cmd-name">/tpa &lt;player&gt;</span>
+            <button class="cmd-copy-btn" onclick="copyCmd(this, '/tpa Steve')">Copy</button>
+          </div>
+          <div class="cmd-example">» /tpa Steve</div>
+          <div class="cmd-desc">Send a teleport request to another player. They must accept before you are teleported to their location.</div>
+          <span class="cmd-tag tag-chat">Utility</span>
+        </div>
+
+        <div class="cmd-card" style="--accent: #fb923c">
+          <div class="cmd-top">
+            <span class="cmd-name">/msg &lt;player&gt; &lt;message&gt;</span>
+            <button class="cmd-copy-btn" onclick="copyCmd(this, '/msg Steve Hey! Want to trade?')">Copy</button>
+          </div>
+          <div class="cmd-example">» /msg Steve Hey! Want to trade?</div>
+          <div class="cmd-desc">Send a private message to another player. Also works with /tell and /w (whisper). Use /r to reply quickly.</div>
+          <span class="cmd-tag tag-chat">Chat</span>
+        </div>
+
+        <div class="cmd-card" style="--accent: #fb923c">
+          <div class="cmd-top">
+            <span class="cmd-name">/kit starter</span>
+            <button class="cmd-copy-btn" onclick="copyCmd(this, '/kit starter')">Copy</button>
+          </div>
+          <div class="cmd-example">» /kit starter</div>
+          <div class="cmd-desc">Claim your free starter kit with basic tools and money to begin your economic journey. One time use only!</div>
+          <span class="cmd-tag tag-chat">Utility</span>
+        </div>
+
+        <div class="cmd-card" style="--accent: #fb923c">
+          <div class="cmd-top">
+            <span class="cmd-name">/warp &lt;name&gt;</span>
+            <button class="cmd-copy-btn" onclick="copyCmd(this, '/warp market')">Copy</button>
+          </div>
+          <div class="cmd-example">» /warp market</div>
+          <div class="cmd-desc">Teleport to a server warp location. Key warps: market, mine, farm, nether, end, pvp. Use /warps for full list.</div>
+          <span class="cmd-tag tag-chat">Utility</span>
+        </div>
+
+        <div class="cmd-card" style="--accent: #fb923c">
+          <div class="cmd-top">
+            <span class="cmd-name">/help</span>
+            <button class="cmd-copy-btn" onclick="copyCmd(this, '/help')">Copy</button>
+          </div>
+          <div class="cmd-example">» /help</div>
+          <div class="cmd-desc">View all available commands and their usage. Browse by category using /help [topic] for detailed guides.</div>
+          <span class="cmd-tag tag-chat">Utility</span>
+        </div>
+
+      </div>
+    </div>
+
+  </div><!-- /cmd-container -->
+</div><!-- /page-commands -->
+
+<footer>
+  <p>© 2024 <span>Quartz SMP</span> · Economy Survival Server · <span>power.hexonode.fun:25951</span></p>
+</footer>
+
+<script>
+  // ─── Particle System ───
+  (function(){
+    const canvas = document.getElementById('particles');
+    const ctx = canvas.getContext('2d');
+    let W, H, particles = [];
+
+    function resize(){
+      W = canvas.width  = window.innerWidth;
+      H = canvas.height = window.innerHeight;
+    }
+    resize();
+    window.addEventListener('resize', resize);
+
+    const COLORS = ['rgba(255,215,0,', 'rgba(255,165,0,', 'rgba(255,255,200,'];
+
+    for(let i=0; i<70; i++){
+      particles.push({
+        x: Math.random()*1920, y: Math.random()*1080,
+        size: Math.random()*1.8+0.3,
+        speed: Math.random()*0.25+0.05,
+        opacity: Math.random()*0.45+0.05,
+        color: COLORS[Math.floor(Math.random()*COLORS.length)],
+        dx: (Math.random()-0.5)*0.3
+      });
+    }
+
+    function draw(){
+      ctx.clearRect(0,0,W,H);
+      for(const p of particles){
+        ctx.beginPath();
+        ctx.arc(p.x % W, p.y % H, p.size, 0, Math.PI*2);
+        ctx.fillStyle = p.color + p.opacity + ')';
+        ctx.fill();
+        p.y -= p.speed;
+        p.x += p.dx;
+        if(p.y < -5){ p.y = H+5; p.x = Math.random()*W; }
+        if(p.x < 0) p.x = W;
+        if(p.x > W) p.x = 0;
+      }
+      requestAnimationFrame(draw);
+    }
+    draw();
+  })();
+
+  // ─── Page Navigation ───
+  function showPage(name){
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.nav-links a').forEach(a => a.classList.remove('active'));
+    document.getElementById('page-'+name).classList.add('active');
+    document.getElementById('nav-'+name).classList.add('active');
+    window.scrollTo({top:0, behavior:'smooth'});
+  }
+
+  // ─── Universal copy helper (works HTTP + HTTPS) ───
+  function copyText(text, onSuccess){
+    if(navigator.clipboard && window.isSecureContext){
+      navigator.clipboard.writeText(text).then(onSuccess).catch(()=>fallbackCopy(text, onSuccess));
+    } else {
+      fallbackCopy(text, onSuccess);
+    }
+  }
+  function fallbackCopy(text, onSuccess){
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.cssText = 'position:fixed;left:-9999px;top:-9999px;opacity:0;';
+    document.body.appendChild(ta);
+    ta.focus(); ta.select();
+    try { document.execCommand('copy'); onSuccess(); } catch(e){ alert('Copy failed. Please copy manually:\n'+text); }
+    document.body.removeChild(ta);
+  }
+
+  // ─── Copy IP ───
+  function copyIP(){
+    const ip = document.getElementById('server-ip').textContent.trim();
+    copyText(ip, ()=>{
+      const t = document.getElementById('copy-toast');
+      t.classList.add('show');
+      setTimeout(()=>t.classList.remove('show'), 2200);
+    });
+  }
+
+  // ─── Copy Command ───
+  function copyCmd(btn, cmd){
+    copyText(cmd, ()=>{
+      btn.textContent = '✔ Copied';
+      btn.classList.add('copied');
+      setTimeout(()=>{
+        btn.textContent = 'Copy';
+        btn.classList.remove('copied');
+      }, 1800);
+    });
+  }
+
+  // ─── Animated Counters ───
+  function animateCounter(id, target, suffix=''){
+    let start = 0;
+    const el = document.getElementById(id);
+    const step = Math.ceil(target / 60);
+    const interval = setInterval(()=>{
+      start = Math.min(start + step, target);
+      el.textContent = start.toLocaleString() + suffix;
+      if(start >= target) clearInterval(interval);
+    }, 25);
+  }
+  window.addEventListener('load', ()=>{
+    setTimeout(()=>{
+      animateCounter('counter-players', 47);
+      animateCounter('counter-shops', 312);
+      animateCounter('counter-trades', 1284);
+    }, 600);
+  });
+</script>
+</body>
+</html>
