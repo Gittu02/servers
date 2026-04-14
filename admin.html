@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Admin — Change Server IP</title>
+</head>
+<body>
+
+<h2>Change Server IP</h2>
+
+<p>Current IP: <strong id="current-ip">Loading...</strong></p>
+
+<br>
+
+<label for="new-ip">New IP Address:</label><br>
+<input type="text" id="new-ip" placeholder="e.g. play.example.com:25565" size="40"/>
+
+<br><br>
+
+<button onclick="saveIP()">Save</button>
+<button onclick="resetIP()">Reset to Default</button>
+
+<br><br>
+
+<p id="msg"></p>
+
+<hr>
+
+<p><small>This page is not linked anywhere. Changes apply immediately on the main site.</small></p>
+
+<script>
+  const DEFAULT_IP = 'power.hexonode.fun:25951';
+  const KEY = 'quartz_server_ip';
+
+  function loadCurrent() {
+    const saved = localStorage.getItem(KEY);
+    document.getElementById('current-ip').textContent = saved || DEFAULT_IP;
+    document.getElementById('new-ip').value = saved || DEFAULT_IP;
+  }
+
+  function saveIP() {
+    const val = document.getElementById('new-ip').value.trim();
+    if (!val) {
+      document.getElementById('msg').textContent = 'Error: IP cannot be empty.';
+      return;
+    }
+    localStorage.setItem(KEY, val);
+    document.getElementById('current-ip').textContent = val;
+    document.getElementById('msg').textContent = 'Saved! Reload index.html to see the change.';
+  }
+
+  function resetIP() {
+    localStorage.removeItem(KEY);
+    document.getElementById('current-ip').textContent = DEFAULT_IP;
+    document.getElementById('new-ip').value = DEFAULT_IP;
+    document.getElementById('msg').textContent = 'Reset to default IP.';
+  }
+
+  loadCurrent();
+</script>
+
+</body>
+</html>
