@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Admin — Change Server IP</title>
+</head>
+<body>
+
+<h2>Quartz SMP — Admin: Change Server IP</h2>
+<hr>
+
+<p><b>How this works:</b> Saving here updates <code>ip.json</code> in your GitHub repo via the GitHub API. Everyone who opens the site will see the new IP within seconds.</p>
+
+<br>
+
+<table>
+  <tr>
+    <td><label>GitHub Username:&nbsp;</label></td>
+    <td><input type="text" id="gh-user" size="32" placeholder="your-github-username"/></td>
+  </tr>
+  <tr><td colspan="2"><br></td></tr>
+  <tr>
+    <td><label>Repository Name:&nbsp;</label></td>
+    <td><input type="text" id="gh-repo" size="32" placeholder="your-repo-name"/></td>
+  </tr>
+  <tr><td colspan="2"><br></td></tr>
+  <tr>
+    <td><label>GitHub Token:&nbsp;</label></td>
+    <td><input type="password" id="gh-token" size="32" placeholder="ghp_xxxxxxxxxxxx"/></td>
+  </tr>
+  <tr><td colspan="2"><br></td></tr>
+  <tr>
+    <td><label>New Server IP:&nbsp;</label></td>
+    <td><input type="text" id="new-ip" size="32" placeholder="play.example.com:25565"/></td>
+  </tr>
+</table>
+
+<br>
+
+<button onclick="saveSettings()">Save Settings to Browser</button>
+&nbsp;&nbsp;
+<button onclick="updateIP()">Update IP on GitHub (goes live for everyone)</button>
+
+<br><br>
+
+<div id="current-ip-display"></div>
+
+<br>
+
+<p id="msg"></p>
+
+<hr>
+
+<h3>How to get a GitHub Token</h3>
+<ol>
+  <li>Go to <a href="https://github.com/settings/tokens/new" target="_blank">github.com/settings/tokens/new</a></li>
+  <li>Give it any name, e.g. <b>QuartzSMP Admin</b></li>
+  <li>Set expiration to <b>No expiration</b></li>
+  <li>Under <b>Scopes</b>, tick <b>repo</b></li>
+  <li>Click <b>Generate token</b> and paste it in the field above</li>
+  <li>Click <b>Save Settings to Browser</b> so you don't have to re-enter it</li>
+</ol>
+
+<p><small>Your token is saved in <b>this browser only</b> (localStorage). It is never sent anywhere except directly to api.github.com.</small></p>
+
+<script>
+  const SETTINGS_KEY = 'quartz_admin_settings';
+
+  function loadSettings() {
+    const s = JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}');
+    if (s.user)  document.getElementById('gh-user').value  = s.user;
+    if (s.repo)  document.getElementById('gh-repo').value  = s.repo;
+    if (s.token) document.getElementById('gh-token').value = s.token;
+    if (s.user && s.repo) fetchCurrentIP(s.user, s.repo);
+  }
+
+  function saveSettings() {
+    const s = {
+      user:  document.getElementById('gh-user').value.trim(),
+      repo:  document.getElementById('gh-repo').value.trim(),
+      token: document.getElementById('gh-token').value.trim()
+    };
+    if (!s.user || !s.repo || !s.token) {
+      setMsg('Please fill in all three fields.', 'red');
+      return;
+    }
+    localStorage.setItem(SETTINGS_KEY, JSON.stringify(s));
+    setMsg('Settings saved to this browser.', 'green');
+    fetchCurrentIP(s.user, s.repo);
+  }
+
+  async function fetchCurrentIP(user, repo) {
+    if (!user || !repo) return;
+    try {
+      const res = await fetch(
+        'https://raw.githubusercontent.com/' + user + '/' + repo + '/main/ip.json?t=' + Date.now()
+      );
+      if (res.ok) {
+        const data = await res.json();
+        document.getElementById('current-ip-display').innerHTML =
+          'Current live IP: <b>' + data.ip + '</b>';
+        document.getElementById('new-ip').value = data.ip;
+      } else {
+        document.getElementById('current-ip-display').innerHTML =
+          '<span style="color:orange">ip.json not found in repo yet — it will be created when you first save.</span>';
+      }
+    } catch(e) {
+      document.getElementById('current-ip-display').innerHTML =
+        '<span style="color:orange">Could not fetch ip.json: ' + e.message + '</span>';
+    }
+  }
+
+  async function updateIP() {
+    const user  = document.getElementById('gh-user').value.trim();
+    const repo  = document.getElementById('gh-repo').value.trim();
+    const token = document.getElementById('gh-token').value.trim();
+    const newIP = document.getElementById('new-ip').value.trim();
+
+    if (!user || !repo || !token) {
+      setMsg('Fill in username, repo, and token first.', 'red');
+      return;
+    }
+    if (!newIP) {
+      setMsg('IP address cannot be empty.', 'red');
+      return;
+    }
+
+    setMsg('Updating...', 'gray');
+
+    const apiURL = 'https://api.github.com/repos/' + user + '/' + repo + '/contents/ip.json';
+    const headers = {
+      'Authorization': 'token ' + token,
+      'Content-Type':  'application/json',
+      'Accept':        'application/vnd.github.v3+json'
+    };
+
+    // Step 1: get current SHA of ip.json (needed to update an existing file)
+    let sha = null;
+    try {
+      const getRes = await fetch(apiURL, { headers });
+      if (getRes.ok) {
+        const getData = await getRes.json();
+        sha = getData.sha;
+      } else if (getRes.status !== 404) {
+        const err = await getRes.json();
+        setMsg('Error reading file: ' + (err.message || getRes.status), 'red');
+        return;
+      }
+      // 404 = file doesn't exist yet, will create it — that's fine
+    } catch(e) {
+      setMsg('Network error: ' + e.message, 'red');
+      return;
+    }
+
+    // Step 2: write new ip.json
+    const body = {
+      message: 'Update server IP to ' + newIP,
+      content: btoa(JSON.stringify({ ip: newIP }))
+    };
+    if (sha) body.sha = sha;
+
+    try {
+      const putRes = await fetch(apiURL, {
+        method:  'PUT',
+        headers: headers,
+        body:    JSON.stringify(body)
+      });
+
+      if (putRes.ok) {
+        setMsg('Done! IP updated to "' + newIP + '". All visitors will see the new IP within seconds.', 'green');
+        document.getElementById('current-ip-display').innerHTML =
+          'Current live IP: <b>' + newIP + '</b>';
+      } else {
+        const err = await putRes.json();
+        setMsg('GitHub error: ' + (err.message || putRes.status), 'red');
+      }
+    } catch(e) {
+      setMsg('Network error: ' + e.message, 'red');
+    }
+  }
+
+  function setMsg(text, color) {
+    const el = document.getElementById('msg');
+    el.textContent = text;
+    el.style.color = color || 'black';
+  }
+
+  loadSettings();
+</script>
+
+</body>
+</html>
